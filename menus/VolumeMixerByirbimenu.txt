@@ -1,0 +1,44 @@
+{
+	"menu_id": "VMBI",
+	"parent_menu_id": "sound",
+	"priority": 5000,
+	"title": "VMBI_title",
+	"description": "VMBI_desc",
+	"back_callback": "VMBI_clbck_onVMBImenuquit",
+	"items":
+	[
+		{
+			"type" : "slider",
+			"id" : "default_volume",
+			"title" : "VMBI_default_volume",
+			"description" : "VMBI_default_volume_desc",
+			"callback" : "VMBI_set_default_volume",
+			"value" : "defaultvolume",
+			"priority" : 25004,
+			"default_value" : 20,
+			"min" : 0,
+			"max" : 100,
+			"step" : 1
+		},
+		{
+			"type" : "divider",
+			"priority" : 25003,
+			"size" : 8
+		},
+		{
+			"type" : "toggle",
+			"id" : "fullmute",
+			"priority" : 25002,
+			"title" : "VMBI_fullmute",
+			"description" : "VMBI_fullmute_desc",
+			"callback" : "VMBI_clbck_fullmute",
+			"value" : "fullmute",
+			"default_value" : false
+		},
+		{
+			"type" : "divider",
+			"priority" : 25001,
+			"size" : 8
+		}
+	]
+}

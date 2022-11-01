@@ -1,0 +1,12 @@
+{
+	"menu_id": "VMBI_ingame",
+	"parent_menu_id": "VMBI",
+	"title": "VMBI_ingame_title",
+	"description": "VMBI_empty",
+	"priority": 50,
+	"back_callback": "VMBI_clbck_ontrackmenuquitstopmusicandsave",
+	"items":
+	[
+		
+	]
+}
