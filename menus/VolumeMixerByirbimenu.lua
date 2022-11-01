@@ -73,10 +73,12 @@ Hooks:PostHook(MenuManager, "_node_selected", "VolumeMixerByirbi_playmainmenutra
 		end
 		-- make sure to set our music volume to current track's volume when getting into the main menu or lobby, to prevent volume beeing incorrect for 0.1 seconds after entering those menus
 		local track = Global.music_manager.current_track
-		if VolumeMixerByirbi:checktrack(track) == true then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track.."_volume"])
-		else
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+		if VolumeMixerByirbi.settings.fullmute == false then
+			if VolumeMixerByirbi:checktrack(track) == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track.."_volume"])
+			else
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+			end
 		end
 	else
 		VolumeMixerByirbi.playlistcustomizationnode = false
