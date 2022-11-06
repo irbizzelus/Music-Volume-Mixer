@@ -3,22 +3,10 @@ if not VolumeMixerByirbi then
 	
 	VolumeMixerByirbi.modpath = ModPath
 	VolumeMixerByirbi.settings = {
-		defaultvolume = nil,
+		defaultvolume = 20,
 		fullmute = false,
 		tracks_data = {}
 	}
-	function set_defaultvolume()
-		if VolumeMixerByirbi.settings.defaultvolume == nil then
-			if managers.user then
-				VolumeMixerByirbi.settings.defaultvolume = managers.user:get_setting("music_volume")
-			else
-				DelayedCalls:Add("VMBI_set_defualtvalue_loop", 0.1, function()
-					set_defaultvolume()
-				end)
-			end
-		end
-	end
-	set_defaultvolume()
 
     function VolumeMixerByirbi:Save()
         local file = io.open(SavePath .. 'VolumeMixerSettings_save.txt', 'w+')
@@ -39,18 +27,8 @@ if not VolumeMixerByirbi then
         end
     end
 	
-	function VolumeMixerByirbi:loadsettingsonboot()
-		if VolumeMixerByirbi.settings.defaultvolume ~= nil then
-			VolumeMixerByirbi:Load()
-			VolumeMixerByirbi:Save()
-			
-		else
-			DelayedCalls:Add("VMBI_loadsettings_loop", 0.1, function()
-				VolumeMixerByirbi.loadsettingsonboot()
-			end)
-		end
-	end
-	VolumeMixerByirbi.loadsettingsonboot()
+	VolumeMixerByirbi:Load()
+	VolumeMixerByirbi:Save()
 
 	function VolumeMixerByirbi:buildtracksdata()
 		if VolumeMixerByirbi.savefile == true and VolumeMixerByirbi.settings.defaultvolume ~= nil then
@@ -87,7 +65,7 @@ end
 
 
 function VolumeMixerByirbi:checktrack(track_id)
-	if track_id then -- randomly crashes sometimes if we reboot the game with SuperBLT's restart game featre? how? we cant even call this fucnction with empty track id
+	if track_id then
 		for k,v in pairs(VolumeMixerByirbi.settings.tracks_data) do
 			if tostring(k) == track_id.."_toggle" and v == true then
 				return true

@@ -25,63 +25,64 @@ Hooks:Add('LocalizationManagerPostInit', 'VolumeMixerByirbi_loc', function(loc)
 	loc:load_localization_file(VolumeMixerByirbi.modpath .. 'menus/lang/VolumeMixerByirbimenu_en.txt', false)
 end)
 
-Hooks:PostHook(MenuCallbackHandler, "set_music_volume", "VolumeMixerByirbi_savedefaultvolume", function(self,item)
-	log("VMBI_DEBUG: SAVEDDEFAULTVOLUME") -- pretty sure this function is from reeeealy old version of this mod, should be deleted if never called
-	VolumeMixerByirbi.settings.defaultvolume = item:value()
-	VolumeMixerByirbi:Save()
-end)
-
 Hooks:PostHook(MenuManager, "_node_selected", "VolumeMixerByirbi_playmainmenutrack", function(self, menu_name, node)
-	if type(node) == "table" and (node._parameters.name == "jukebox_menu_tracks" or node._parameters.name == "jukebox_menu_playlist" or node._parameters.name == "jukebox_heist_tracks" or node._parameters.name == "jukebox_heist_playlist" or node._parameters.name == "jukebox_ghost_tracks" or node._parameters.name == "jukebox_ghost_playlist" or node._parameters.name == "jukebox") then
-		VolumeMixerByirbi.playlistcustomizationnode = true
-	elseif type(node) == "table" and node._parameters.name == "sound" then
+	if type(node) == "table" and node._parameters.name == "sound" then
 		node._items[2]._enabled = false
 		node._items[2]._parameters.help_id = "VMBI_soundsettingtip"
 		node._items[2]._slider_color = Color( 31.875, 255, 255, 255 ) / 255
 		node._items[2]._slider_color_highlight = Color( 1, 255, 255, 255 ) / 255
-		if Utils:IsInGameState() then
-			VolumeMixerByirbi.cur_event_ingame = Global.music_manager.current_event
-		end
-		VolumeMixerByirbi.playlistcustomizationnode = false
-	elseif type(node) == "table" and (node == MenuHelper:GetMenu("VMBI_menus") or node == MenuHelper:GetMenu("VMBI_ingame") or node == MenuHelper:GetMenu("VMBI_ghosts")) then
-		managers.music:track_listen_stop()
-		managers.music:post_event("stop_all_music")
-		if Utils:IsInGameState() then
-			Global.music_manager.current_event = VolumeMixerByirbi.cur_event_ingame
-		else
-			Global.music_manager.current_event = "stop_all_music"
-		end
-		Global.music_manager.current_track = "stop_all_music"
-		VolumeMixerByirbi.playlistcustomizationnode = true
+		VolumeMixerByirbi.fuckingpreplanning = nil
 	elseif type(node) == "table" and node._parameters.name == "kit" then
-		if Network:is_server() then
-			managers.music:track_listen_start(Global.music_manager.track_attachment.loadout, "screen_"..Global.music_manager.track_attachment.loadout)
-			managers.music:post_event(Global.music_manager.track_attachment.loadout)
-		end
-		VolumeMixerByirbi.playlistcustomizationnode = false
-	elseif type(node) == "table" and node == MenuHelper:GetMenu("VMBI") then
-		VolumeMixerByirbi.playlistcustomizationnode = true
-		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(MenuHelper:GetMenu("VMBI"))
-	elseif type(node) == "table" and (node._parameters.name == "main" or node._parameters.name == "lobby") then
-		VolumeMixerByirbi.playlistcustomizationnode = false
-		-- a really dumb failsafe, since after getting out of the game and into the menu/lobby
-		-- our event gets reset to music id but track stays the same as it was in the game
-		-- so we have to make sure that our 'track' is set correctly, but we only have to do it once after getting to the menu after the game ends
-		if not VolumeMixerByirbi.menucheck then
-			Global.music_manager.current_track = Global.music_manager.current_event
-			VolumeMixerByirbi.menucheck = 1
-		end
-		-- make sure to set our music volume to current track's volume when getting into the main menu or lobby, to prevent volume beeing incorrect for 0.1 seconds after entering those menus
-		local track = Global.music_manager.current_track
+		-- add a kit exception that resets volume based on 'event'
+		VolumeMixerByirbi.fuckingpreplanning = true
 		if VolumeMixerByirbi.settings.fullmute == false then
+			local track = Global.music_manager.current_event
+			if string.sub(track, 1, 7) == "screen_" then
+				track = string.sub(track, 8, string.len(track))
+			end
 			if VolumeMixerByirbi:checktrack(track) == true then
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track.."_volume"])
 			else
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 			end
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
+	elseif type(node) == "table" and (node._parameters.name == "main" or node._parameters.name == "lobby") then
+		if not VolumeMixerByirbi.menucheck then -- when in menus/lobby set current track to current event so other parts of this mod work correctly. in base game 'track' in menus is usually nil
+			Global.music_manager.current_track = Global.music_manager.current_event
+			VolumeMixerByirbi.menucheck = 1 -- do it only once, cuz switching tracks via this mod switches track var anyway. fuck all other music players lmao
+		end
+		local track = Global.music_manager.current_track
+		local track_noprefix = nil
+		if string.sub(Global.music_manager.current_track, 8, string.len(Global.music_manager.current_track)) ~= "" then
+			track_noprefix = string.sub(Global.music_manager.current_track, 8, string.len(Global.music_manager.current_track))
+		end
+		if VolumeMixerByirbi.settings.fullmute == false then
+			if VolumeMixerByirbi:checktrack(track) == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track.."_volume"])
+			elseif VolumeMixerByirbi:checktrack(track_noprefix) == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_noprefix.."_volume"])
+			else
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+			end
+		else
+			managers.user:set_setting("music_volume", 0)
+		end
+		VolumeMixerByirbi.fuckingpreplanning = nil
 	else
-		VolumeMixerByirbi.playlistcustomizationnode = false
+		VolumeMixerByirbi.fuckingpreplanning = nil
+	end
+end)
+
+Hooks:PostHook(MenuCallbackHandler, "jukebox_option_back", "VolumeMixerByirbi_fuckinmusicswitchininmenucallbacks", function(self)
+	local track_id = Global.music_manager.current_event
+	Global.music_manager.current_event = "screen_"..Global.music_manager.current_event
+	Global.music_manager.current_track = Global.music_manager.current_event
+	if VolumeMixerByirbi:checktrack(track_id) == true then
+		managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
+	else
+		managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 	end
 end)
 
@@ -91,7 +92,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_donothing = function(this, item)
-		-- do nothing
+		-- Nothing
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_fullmute = function(this, item)
@@ -130,385 +131,152 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 	end
 	
 	MenuCallbackHandler.VMBI_set_default_volume = function(this, item)
-		managers.user:set_setting("music_volume", item:value())
 		VolumeMixerByirbi.settings.defaultvolume = tonumber(item:value())
 		VolumeMixerByirbi:Save()
+		local track_id
+		if string.sub(Global.music_manager.current_track, 1, 7) == "screen_" then
+			track_id = string.sub(Global.music_manager.current_track, 8, string.len(Global.music_manager.current_track))
+		else
+			track_id = Global.music_manager.current_track
+		end
+		
+		if VolumeMixerByirbi.settings.fullmute == true then
+			managers.user:set_setting("music_volume", 0)
+		elseif VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] ~= true then
+			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)	
+		end
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_onVMBImenuquit = function(this, item)
 		if not Utils:IsInGameState() then
 			if Global.music_manager.current_event == "stop_all_music" then
-				managers.music:post_event(managers.music:jukebox_menu_track("mainmenu"))
+				local track_id = managers.music:jukebox_menu_track("mainmenu")
+				managers.music:post_event(track_id)
+				Global.music_manager.current_track = track_id
+				if VolumeMixerByirbi.settings.fullmute == true then
+					managers.user:set_setting("music_volume", 0)
+				elseif VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
+					managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
+				else
+					managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+				end
 			end
 		else
 			if Global.music_manager.current_track == "stop_all_music" then
 				local CE = Global.music_manager.current_event
 				local switches = tweak_data.levels:get_music_switches()
-				local selected_track = switches[math.random(1,#switches)]
-				managers.music:track_listen_start(CE, selected_track)
-				managers.music:post_event(selected_track)
-				managers.music:post_event(CE)
-				managers.music._skip_play = nil
-				Global.music_manager.current_track = selected_track
+				if switches then -- fml stealth only heists are stupid
+					local selected_track = switches[math.random(1,#switches)]
+					managers.music:track_listen_start(CE, selected_track)
+					managers.music:post_event(selected_track)
+					managers.music:post_event(CE)
+					managers.music._skip_play = nil
+					Global.music_manager.current_track = selected_track
+					if VolumeMixerByirbi.settings.fullmute == true then
+						managers.user:set_setting("music_volume", 0)
+					elseif VolumeMixerByirbi.settings.tracks_data[selected_track.."_toggle"] == true then
+						managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[selected_track.."_volume"])
+					else
+						managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+					end
+				end
 			end
-		end
-		VolumeMixerByirbi:Save()
-	end
-	
-	MenuCallbackHandler.VMBI_clbck_ontrackmenuquitstopmusicandsave = function(this, item)
-		managers.music:track_listen_stop()
-		managers.music:music_ext_listen_stop()
-		managers.music:post_event("stop_all_music")
-		Global.music_manager.source:stop()
-		Global.music_manager.current_track = "stop_all_music"
-		if Utils:IsInGameState() then
-			Global.music_manager.current_event = VolumeMixerByirbi.cur_event_ingame
-		else
-			Global.music_manager.current_event = "stop_all_music"
 		end
 		VolumeMixerByirbi:Save()
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_stopallmusic = function(this, item)
 		if not Utils:IsInGameState() then
+			managers.music:post_event("stop_all_music")
 			Global.music_manager.source:stop()
 			managers.music:track_listen_stop()
 			managers.music:music_ext_listen_stop()
-			managers.music:post_event("stop_all_music")
 			Global.music_manager.current_track = "stop_all_music"
 			Global.music_manager.current_event = "stop_all_music"
 		end
 	end
 	
-	--################################# Basic menus: menu music callbacks #########################################################
-	
-	MenuCallbackHandler.VMBI_clbck_playtrackonnameclick = function(this, item)
-		local track_id = string.sub(item:name(), 13, string.len(item:name()))
-		--local CE = Global.music_manager.current_event
-		if Global.music_manager.current_track ~= "screen_"..track_id then
-			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
-			managers.music:track_listen_start(track_id, "screen_"..track_id)
-			managers.music:post_event("screen_"..track_id)
-			if Utils:IsInGameState() then
-				Global.music_manager.current_event = VolumeMixerByirbi.cur_event_ingame
-			else
-				Global.music_manager.current_event = "screen_"..track_id
-			end
-			Global.music_manager.current_track = "screen_"..track_id
-			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			end
-		else
-			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
-			if Utils:IsInGameState() then
-				Global.music_manager.current_event = CE
-			else
-				Global.music_manager.current_event = "screen_"..track_id
-			end
-			Global.music_manager.current_track = "stop_all_music"
-		end
-	end
-	
-	MenuCallbackHandler.VMBI_clbck_enablecustomvolume_menus = function(this, item)
-		local track_id = string.sub(item:name(), 18, string.len(item:name()))
-		local node = MenuHelper:GetMenu("VMBI_menus")
-		VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] = item:value() == 'on'
-		for i=1,#node._items do
-			if string.sub(node._items[i]._parameters.name, 18, string.len(node._items[i]._parameters.name)) == track_id and string.sub(node._items[i]._parameters.name, 1, 17) == "VMBItrack_volume_" then
-				node._items[i]:set_enabled(not node._items[i]:enabled())
-				break
-			end
-		end
-		
-		-- update quick menu gui after tweaking track data in the music menu
-		local backmenunode = MenuHelper:GetMenu("VMBI")
-		if not VolumeMixerByirbi.QM_M_track_id then
-			VolumeMixerByirbi.QM_M_track_id = string.sub(VolumeMixerByirbi.qucikacessmenutracks[1], 21, string.len(VolumeMixerByirbi.qucikacessmenutracks[1]))
-		end
-		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"] == false then
-			backmenunode._items[14].selected = 2
-		else
-			backmenunode._items[14].selected = 1
-		end
-		backmenunode._items[15]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"])
-		backmenunode._items[15]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
-		
-		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		if Global.music_manager.current_track == "screen_"..track_id then
-			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			else
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
-			end
-		end
-		VolumeMixerByirbi:Save()
-	end
-
-	MenuCallbackHandler.VMBI_clbck_savecustomvolumefortrack_menus = function(this, item)
-		local track_id = string.sub(item:name(), 18, string.len(item:name()))
-		VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"] = tonumber(item:value())
-		if Global.music_manager.current_track == "screen_"..track_id then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-		end
-		-- update quick menu gui after tweaking track data in the music menu
-		local backmenunode = MenuHelper:GetMenu("VMBI")
-		if not VolumeMixerByirbi.QM_M_track_id then
-			VolumeMixerByirbi.QM_M_track_id = string.sub(VolumeMixerByirbi.qucikacessmenutracks[1], 21, string.len(VolumeMixerByirbi.qucikacessmenutracks[1]))
-		end
-		backmenunode._items[15]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
-		VolumeMixerByirbi:Save()
-	end
-
---######################################### Basic menus: heist music callbacks #########################################################
-
-	MenuCallbackHandler.VMBI_clbck_playgametrackonnameclick = function(this, item)
-		local track_id = string.sub(item:name(), 17, string.len(item:name()))
-		--local CE = Global.music_manager.current_event
-		if Global.music_manager.current_track ~= track_id then
-			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
-			if Utils:IsInGameState() then
-				managers.music:track_listen_start(VolumeMixerByirbi.cur_event_ingame, track_id)
-				managers.music:post_event(track_id)
-				managers.music:post_event(VolumeMixerByirbi.cur_event_ingame)
-			else
-				managers.music:track_listen_start("music_heist_assault", track_id)
-				Global.music_manager.current_event = track_id
-				managers.music:post_event(track_id)
-			end	
-			Global.music_manager.current_track = track_id
-			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			end
-		else
-			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
-			Global.music_manager.source:stop()
-			Global.music_manager.current_event = "stop_all_music"
-			Global.music_manager.current_track = "stop_all_music"
-		end
-	end
-	
-	MenuCallbackHandler.VMBI_clbck_enablecustomvolume_game = function(this, item)
-		local track_id = string.sub(item:name(), 22, string.len(item:name()))
-		local node = MenuHelper:GetMenu("VMBI_ingame")
-		VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] = item:value() == 'on'
-		for i=1,#node._items do
-			if string.sub(node._items[i]._parameters.name, 22, string.len(node._items[i]._parameters.name)) == track_id and string.sub(node._items[i]._parameters.name, 1, 21) == "VMBIgametrack_volume_" then
-				node._items[i]:set_enabled(not node._items[i]:enabled())
-				break
-			end
-		end
-		
-		-- update quick menu gui after tweaking track data in the game menu
-		local backmenunode = MenuHelper:GetMenu("VMBI")
-		if not VolumeMixerByirbi.QM_G_track_id then
-			VolumeMixerByirbi.QM_G_track_id = string.sub(VolumeMixerByirbi.qucikacessgametracks[1], 14, string.len(VolumeMixerByirbi.qucikacessgametracks[1]))
-		end
-		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"] == false then
-			backmenunode._items[20].selected = 2
-		else
-			backmenunode._items[20].selected = 1
-		end
-		backmenunode._items[21]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"])
-		backmenunode._items[21]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"]
-		
-		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		if Global.music_manager.current_track == track_id then
-			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			else
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
-			end
-		end
-		VolumeMixerByirbi:Save()
-	end
-	
-	MenuCallbackHandler.VMBI_clbck_savecustomvolumefortrack_game = function(this, item)
-		local track_id = string.sub(item:name(), 22, string.len(item:name()))
-		VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"] = tonumber(item:value())
-		if Global.music_manager.current_track == track_id then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-		end
-		-- update quick menu gui after tweaking track data in the game menu
-		local backmenunode = MenuHelper:GetMenu("VMBI")
-		if not VolumeMixerByirbi.QM_G_track_id then
-			VolumeMixerByirbi.QM_G_track_id = string.sub(VolumeMixerByirbi.qucikacessgametracks[1], 14, string.len(VolumeMixerByirbi.qucikacessgametracks[1]))
-		end
-		backmenunode._items[21]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"]
-		VolumeMixerByirbi:Save()
-	end
-	
-	--################################### Basic menus: stealth music callbacks ######################################
-	
-	MenuCallbackHandler.VMBI_clbck_playghosttrackonnameclick = function(this, item)
-		local track_id = string.sub(item:name(), 18, string.len(item:name()))
-		--local CE = Global.music_manager.current_event
-		if Global.music_manager.current_track ~= "screen_"..track_id then
-			if Utils:IsInGameState() then
-				Global.music_manager.source:stop()
-				managers.music:track_listen_start("screen_"..track_id, "screen_"..track_id)
-				managers.music:track_listen_stop()
-				Global.music_manager.source:post_event(track_id)
-				managers.music:post_event(VolumeMixerByirbi.cur_event_ingame)
-			else
-				managers.music:track_listen_stop()
-				managers.music:post_event("stop_all_music")
-				managers.music:track_listen_start(track_id, "screen_"..track_id)
-				Global.music_manager.source:stop()
-				managers.music:post_event(track_id)
-				Global.music_manager.source:post_event("suspense_4")
-				managers.music:music_ext_listen_start(track_id)
-				Global.music_manager.current_track = "screen_"..track_id
-				Global.music_manager.current_event = "suspense_4"
-			end
-			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			end
-		else
-			if not Utils:IsInGameState() then
-				managers.music:music_ext_listen_stop(track_id)
-			end
-			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
-			Global.music_manager.current_track = "stop_all_music"
-			Global.music_manager.current_event = VolumeMixerByirbi.cur_event_ingame
-		end
-	end
-	
-	MenuCallbackHandler.VMBI_clbck_enablecustomvolume_ghost = function(this, item)
-		local track_id = string.sub(item:name(), 23, string.len(item:name()))
-		local node = MenuHelper:GetMenu("VMBI_ghosts")
-		VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] = item:value() == 'on'
-		for i=1,#node._items do
-			if string.sub(node._items[i]._parameters.name, 23, string.len(node._items[i]._parameters.name)) == track_id and string.sub(node._items[i]._parameters.name, 1, 22) == "VMBIghosttrack_volume_" then
-				node._items[i]:set_enabled(not node._items[i]:enabled())
-				break
-			end
-		end
-		
-		-- update quick menu gui after tweaking track data in the music menu
-		local backmenunode = MenuHelper:GetMenu("VMBI")
-		if not VolumeMixerByirbi.QM_S_track_id then
-			VolumeMixerByirbi.QM_S_track_id = string.sub(VolumeMixerByirbi.qucikacessghosttracks[1], 21, string.len(VolumeMixerByirbi.qucikacessghosttracks[1]))
-		end
-		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == false then
-			backmenunode._items[26].selected = 2
-		else
-			backmenunode._items[26].selected = 1
-		end
-		backmenunode._items[27]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"])
-		backmenunode._items[27]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"]
-		
-		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		if Global.music_manager.current_track == "screen_"..track_id then
-			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			else
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
-			end
-		end
-		VolumeMixerByirbi:Save()
-	end
-
-	MenuCallbackHandler.VMBI_clbck_savecustomvolumefortrack_ghost = function(this, item)
-		local track_id = string.sub(item:name(), 23, string.len(item:name()))
-		VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"] = tonumber(item:value())
-		if Global.music_manager.current_track == "screen_"..track_id then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-		end
-		-- update quick menu gui after tweaking track data in the music menu
-		local backmenunode = MenuHelper:GetMenu("VMBI")
-		if not VolumeMixerByirbi.QM_S_track_id then
-			VolumeMixerByirbi.QM_S_track_id = string.sub(VolumeMixerByirbi.qucikacessghosttracks[1], 21, string.len(VolumeMixerByirbi.qucikacessghosttracks[1]))
-		end
-		backmenunode._items[27]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"]
-		VolumeMixerByirbi:Save()
-	end
-	
-	--################################### QUICK MENUS: menu music callbacks ######################################
+	--################################### Menu music callbacks ######################################
 	
 	MenuCallbackHandler.VMBI_clbck_setquickmenutrack = function(this, item)
 		VolumeMixerByirbi.QM_M_track_id = string.sub(VolumeMixerByirbi.qucikacessmenutracks[item:value()], 21, string.len(VolumeMixerByirbi.qucikacessmenutracks[item:value()]))
 		local node = MenuHelper:GetMenu("VMBI")
-		if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_M_track_id then
-			local CE = Global.music_manager.current_event
+		local CE = Global.music_manager.current_event
+		-- silly edgecase where our track can be equal but have no prefix, so we avoid restarting the track, but still update the ui and globals
+		if Global.music_manager.current_track == VolumeMixerByirbi.QM_M_track_id then
+			Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
+			Global.music_manager.current_event = "screen_"..VolumeMixerByirbi.QM_M_track_id
+		elseif Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_M_track_id then
 			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
 			if Utils:IsInGameState() then
 				managers.music:track_listen_start(VolumeMixerByirbi.QM_M_track_id, "screen_"..VolumeMixerByirbi.QM_M_track_id)
 				Global.music_manager.current_event = CE
 				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
 			else
 				managers.music:track_listen_start(VolumeMixerByirbi.QM_M_track_id, "screen_"..VolumeMixerByirbi.QM_M_track_id)
-				Global.music_manager.current_event = "screen_"..VolumeMixerByirbi.QM_M_track_id
 				managers.music:post_event("screen_"..VolumeMixerByirbi.QM_M_track_id)
 				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
 			end
-			if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"] == true then
+			if VolumeMixerByirbi.settings.fullmute == true then
+				managers.user:set_setting("music_volume", 0)
+			elseif VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"] == true then
 				managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"])
 			else
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 			end
 		end
+		-- ui
 		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"] == false then
-			node._items[14].selected = 2
+			node._items[11].selected = 2
 		else
-			node._items[14].selected = 1
+			node._items[11].selected = 1
 		end
-		node._items[15]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"])
-		node._items[15]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
-		
+		node._items[12]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"])
+		node._items[12]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_QM_M_toggle = function(this, item)
+		-- if we try to enable toggle for a track that doesnt exist, pick the first track on the list. can only happen if user tries to adjust track before selecting one, but since the default track there is always first from the list, this works perfectly
 		if not VolumeMixerByirbi.QM_M_track_id then
 			VolumeMixerByirbi.QM_M_track_id = string.sub(VolumeMixerByirbi.qucikacessmenutracks[1], 21, string.len(VolumeMixerByirbi.qucikacessmenutracks[1]))
 		end
-		if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_M_track_id then
+		local node = MenuHelper:GetMenu("VMBI")
+		if Global.music_manager.current_track == VolumeMixerByirbi.QM_M_track_id then
+			-- dont restart our track if it has no prefix + updates to globals
+			Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
+			Global.music_manager.current_event = "screen_"..VolumeMixerByirbi.QM_M_track_id
+		elseif Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_M_track_id then
 			local CE = Global.music_manager.current_event
 			managers.music:track_listen_stop()
-			managers.music:post_event("stop_all_music")
 			if Utils:IsInGameState() then
 				managers.music:track_listen_start(VolumeMixerByirbi.QM_M_track_id, "screen_"..VolumeMixerByirbi.QM_M_track_id)
 				Global.music_manager.current_event = CE
 				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
 			else
 				managers.music:track_listen_start(VolumeMixerByirbi.QM_M_track_id, "screen_"..VolumeMixerByirbi.QM_M_track_id)
-				Global.music_manager.current_event = "screen_"..VolumeMixerByirbi.QM_M_track_id
 				managers.music:post_event("screen_"..VolumeMixerByirbi.QM_M_track_id)
 				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
-			end
-		end		
-		local node = MenuHelper:GetMenu("VMBI")
+			end	
+		end	
+		
+		-- ui
 		VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"] = item:value() == 'on'
-		node._items[15]:set_enabled(not node._items[15]:enabled())
+		node._items[12]:set_enabled(not node._items[12]:enabled())
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		local track_id = VolumeMixerByirbi.QM_M_track_id
-		local newnode = MenuHelper:GetMenu("VMBI_menus")
-		for i=1,#newnode._items do
-			if string.sub(newnode._items[i]._parameters.name, 18, string.len(newnode._items[i]._parameters.name)) == track_id and string.sub(newnode._items[i]._parameters.name, 1, 17) == "VMBItrack_toggle_" then
-				if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
-					newnode._items[i].selected = 2
-				else
-					newnode._items[i].selected = 1
-				end
-				newnode._items[i+1]:set_enabled(not newnode._items[i+1]:enabled())
-				break
-			end
-		end
+		
 		VolumeMixerByirbi:Save()
 		
-		if Global.music_manager.current_track == "screen_"..VolumeMixerByirbi.QM_M_track_id then
-			if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"])
+		-- clicking toggle switches volume, so we can hear diff between default and custom volume
+		local track_id = VolumeMixerByirbi.QM_M_track_id
+		if Global.music_manager.current_track == "screen_"..track_id and VolumeMixerByirbi.settings.fullmute == false then
+			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
 			else
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 			end
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 
@@ -516,7 +284,11 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 		if not VolumeMixerByirbi.QM_M_track_id then
 			VolumeMixerByirbi.QM_M_track_id = string.sub(VolumeMixerByirbi.qucikacessmenutracks[1], 21, string.len(VolumeMixerByirbi.qucikacessmenutracks[1]))
 		end
-		if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_M_track_id then
+		if Global.music_manager.current_track == VolumeMixerByirbi.QM_M_track_id then
+			-- dont restart our track if it has no prefix + updates to globals
+			Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_M_track_id
+			Global.music_manager.current_event = "screen_"..VolumeMixerByirbi.QM_M_track_id
+		elseif Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_M_track_id then
 			local CE = Global.music_manager.current_event
 			managers.music:track_listen_stop()
 			managers.music:post_event("stop_all_music")
@@ -532,97 +304,86 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 			end
 		end	
 		VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"] = tonumber(item:value())
-		local track_id = VolumeMixerByirbi.QM_M_track_id
-		local newnode = MenuHelper:GetMenu("VMBI_menus")
-		for i=1,#newnode._items do
-			if string.sub(newnode._items[i]._parameters.name, 18, string.len(newnode._items[i]._parameters.name)) == track_id and string.sub(newnode._items[i]._parameters.name, 1, 17) == "VMBItrack_toggle_" then
-				newnode._items[i+1]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
-				break
-			end
-		end
 		
 		VolumeMixerByirbi:Save()
-		if Global.music_manager.current_track == "screen_"..VolumeMixerByirbi.QM_M_track_id then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"])
+		
+		local track_id = VolumeMixerByirbi.QM_M_track_id
+		if Global.music_manager.current_track == "screen_"..track_id and VolumeMixerByirbi.settings.fullmute == false then
+			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 	
-	--################################### QUICK MENUS: heist music callbacks ######################################
+	--################################### Heist music callbacks ######################################
 	
 	MenuCallbackHandler.VMBI_clbck_setquickgametrack = function(this, item)
 		VolumeMixerByirbi.QM_G_track_id = string.sub(VolumeMixerByirbi.qucikacessgametracks[item:value()], 14, string.len(VolumeMixerByirbi.qucikacessgametracks[item:value()]))
 		local node = MenuHelper:GetMenu("VMBI")
 		local CE = Global.music_manager.current_event
-		if Global.music_manager.current_track ~= VolumeMixerByirbi.QM_G_track_id then
+		local track_id = VolumeMixerByirbi.QM_G_track_id
+		if Global.music_manager.current_track ~= track_id then
 			if Utils:IsInGameState() then
-				managers.music:track_listen_start(CE, VolumeMixerByirbi.QM_G_track_id)
-				managers.music:post_event(VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start(CE, track_id)
+				managers.music:post_event(track_id)
 				managers.music:post_event(CE)
 				managers.music._skip_play = nil
-				Global.music_manager.loadout_selection = VolumeMixerByirbi.QM_G_track_id
+				Global.music_manager.loadout_selection = track_id
 			else
-				managers.music:track_listen_start("music_heist_assault", VolumeMixerByirbi.QM_G_track_id)
-				Global.music_manager.current_event = VolumeMixerByirbi.QM_G_track_id
-				managers.music:post_event(VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start("music_heist_assault", track_id)
+				Global.music_manager.current_event = track_id
+				--managers.music:post_event(track_id)
 			end
-			Global.music_manager.current_track = VolumeMixerByirbi.QM_G_track_id
-			if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"])
+			Global.music_manager.current_track = track_id
+			if VolumeMixerByirbi.settings.fullmute == true then
+				managers.user:set_setting("music_volume", 0)
+			elseif VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
+				managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
 			else
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 			end
 		end
-		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"] == false then
-			node._items[20].selected = 2
+		if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
+			node._items[17].selected = 2
 		else
-			node._items[20].selected = 1
+			node._items[17].selected = 1
 		end
-		node._items[21]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"])
-		node._items[21]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"]
+		node._items[18]:set_enabled(VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"])
+		node._items[18]._value = VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"]
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)	
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_QM_G_toggle = function(this, item)
 		local CE = Global.music_manager.current_event
+		local node = MenuHelper:GetMenu("VMBI")
 		if not VolumeMixerByirbi.QM_G_track_id then
 			VolumeMixerByirbi.QM_G_track_id = string.sub(VolumeMixerByirbi.qucikacessgametracks[1], 14, string.len(VolumeMixerByirbi.qucikacessgametracks[1]))
 		end
-		if Global.music_manager.current_track ~= VolumeMixerByirbi.QM_G_track_id then
+		local track_id = VolumeMixerByirbi.QM_G_track_id
+		if Global.music_manager.current_track ~= track_id then
 			if Utils:IsInGameState() then
-				managers.music:track_listen_start(CE, VolumeMixerByirbi.QM_G_track_id)
-				managers.music:post_event(VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start(CE, track_id)
+				managers.music:post_event(track_id)
 				managers.music:post_event(CE)
 			else
-				managers.music:track_listen_start("music_heist_assault", VolumeMixerByirbi.QM_G_track_id)
-				Global.music_manager.current_event = VolumeMixerByirbi.QM_G_track_id
-				managers.music:post_event(VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start("music_heist_assault", track_id)
+				Global.music_manager.current_event = track_id
+				--managers.music:post_event(track_id)
 			end
-			Global.music_manager.current_track = VolumeMixerByirbi.QM_G_track_id
+			Global.music_manager.current_track = track_id
 		end
-		local node = MenuHelper:GetMenu("VMBI")
-		VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"] = item:value() == 'on'
-		node._items[21]:set_enabled(not node._items[21]:enabled())
+		VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] = item:value() == 'on'
+		node._items[18]:set_enabled(not node._items[18]:enabled())
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		local track_id = VolumeMixerByirbi.QM_G_track_id
-		local newnode = MenuHelper:GetMenu("VMBI_ingame")
-		for i=1,#newnode._items do
-			if string.sub(newnode._items[i]._parameters.name, 22, string.len(newnode._items[i]._parameters.name)) == track_id and string.sub(newnode._items[i]._parameters.name, 1, 21) == "VMBIgametrack_toggle_" then
-				if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
-					newnode._items[i].selected = 2
-				else
-					newnode._items[i].selected = 1
-				end
-				newnode._items[i+1]:set_enabled(not newnode._items[i+1]:enabled())
-				break
-			end
-		end
 		VolumeMixerByirbi:Save()
-		if Global.music_manager.current_track == VolumeMixerByirbi.QM_G_track_id then
-			if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"])
+		if Global.music_manager.current_track == track_id and VolumeMixerByirbi.settings.fullmute == false then
+			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
 			else
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 			end
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 	
@@ -631,34 +392,29 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 		if not VolumeMixerByirbi.QM_G_track_id then
 			VolumeMixerByirbi.QM_G_track_id = string.sub(VolumeMixerByirbi.qucikacessgametracks[1], 14, string.len(VolumeMixerByirbi.qucikacessgametracks[1]))
 		end
-		if Global.music_manager.current_track ~= VolumeMixerByirbi.QM_G_track_id then
+		local track_id = VolumeMixerByirbi.QM_G_track_id
+		if Global.music_manager.current_track ~= track_id then
 			if Utils:IsInGameState() then
-				managers.music:track_listen_start(CE, VolumeMixerByirbi.QM_G_track_id)
-				managers.music:post_event(VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start(CE, track_id)
+				managers.music:post_event(track_id)
 				managers.music:post_event(CE)
 			else
-				managers.music:track_listen_start("music_heist_assault", VolumeMixerByirbi.QM_G_track_id)
-				Global.music_manager.current_event = VolumeMixerByirbi.QM_G_track_id
-				managers.music:post_event(VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start("music_heist_assault", track_id)
+				Global.music_manager.current_event = track_id
+				--managers.music:post_event(track_id)
 			end
-			Global.music_manager.current_track = VolumeMixerByirbi.QM_G_track_id
+			Global.music_manager.current_track = track_id
 		end
-		VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"] = tonumber(item:value())
-		local track_id = VolumeMixerByirbi.QM_G_track_id
-		local newnode = MenuHelper:GetMenu("VMBI_ingame")
-		for i=1,#newnode._items do
-			if string.sub(newnode._items[i]._parameters.name, 22, string.len(newnode._items[i]._parameters.name)) == track_id and string.sub(newnode._items[i]._parameters.name, 1, 21) == "VMBIgametrack_toggle_" then
-				newnode._items[i+1]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"]
-				break
-			end
-		end
+		VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"] = tonumber(item:value())
 		VolumeMixerByirbi:Save()
-		if Global.music_manager.current_track == VolumeMixerByirbi.QM_G_track_id then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_G_track_id.."_volume"])
+		if Global.music_manager.current_track == track_id and VolumeMixerByirbi.settings.fullmute == false then
+			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 	
-	local function VMBI_play_G_trackphase(phase)
+	function VMBI_play_G_trackphase(phase)
 	local CE = Global.music_manager.current_event
 	managers.music._skip_play = nil
 		if Utils:IsInGameState() then
@@ -668,6 +424,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 					managers.music:track_listen_start(CE, VolumeMixerByirbi.QM_G_track_id)
 				end
 				Global.music_manager.source:post_event(CE)
+				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
 				return
 			end
 			if Global.music_manager.current_track ~= VolumeMixerByirbi.QM_G_track_id then
@@ -680,6 +437,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				managers.music:post_event(phase)
 				Global.music_manager.current_event = CE
 				managers.music._skip_play = true
+				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
 			else
 				if phase == "music_heist_setup" then
 					managers.music:post_event("stop_all_music")
@@ -688,6 +446,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				managers.music:post_event(phase)
 				Global.music_manager.current_event = CE
 				managers.music._skip_play = true
+				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
 			end
 		else
 			if Global.music_manager.current_track ~= VolumeMixerByirbi.QM_G_track_id then
@@ -699,10 +458,24 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				Global.music_manager.source:post_event(phase)
 				Global.music_manager.current_track = VolumeMixerByirbi.QM_G_track_id
 				Global.music_manager.current_event = phase
+				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
 			else
 				Global.music_manager.source:post_event(phase)
 				Global.music_manager.current_event = phase
+				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
 			end
+		end
+	end
+	
+	function VMBI_postphasevolume_G(track_id)
+		if VolumeMixerByirbi.settings.fullmute == false then
+			if VolumeMixerByirbi:checktrack(track_id) == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
+			else
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+			end
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 	
@@ -713,110 +486,101 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 		
 		if item:value() == 1 then
 			VMBI_play_G_trackphase("Default")
-		else
-			if item:value() == 2 then
-				VMBI_play_G_trackphase("music_heist_setup")
-			elseif item:value() == 3 then
-				VMBI_play_G_trackphase("music_heist_control")
-			elseif item:value() == 4 then
-				VMBI_play_G_trackphase("music_heist_anticipation")
-			elseif item:value() == 5 then
-				VMBI_play_G_trackphase("music_heist_assault")
-			end
+		elseif item:value() == 2 then
+			VMBI_play_G_trackphase("music_heist_setup")
+		elseif item:value() == 3 then
+			VMBI_play_G_trackphase("music_heist_control")
+		elseif item:value() == 4 then
+			VMBI_play_G_trackphase("music_heist_anticipation")
+		elseif item:value() == 5 then
+			VMBI_play_G_trackphase("music_heist_assault")
 		end
 	end
 	
 	
-	--################################### QUICK MENUS: stealth music callbacks ######################################
+	--################################### Stealth music callbacks ######################################
 	
 	MenuCallbackHandler.VMBI_clbck_setquickghosttrack = function(this, item)
 		VolumeMixerByirbi.QM_S_track_id = string.sub(VolumeMixerByirbi.qucikacessghosttracks[item:value()], 21, string.len(VolumeMixerByirbi.qucikacessghosttracks[item:value()]))
 		local node = MenuHelper:GetMenu("VMBI")
 		local CE = Global.music_manager.current_event
+		local track_id = VolumeMixerByirbi.QM_S_track_id
 		if Utils:IsInGameState() then
-			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
+			if Global.music_manager.current_track ~= "screen_"..track_id then
 				Global.music_manager.source:stop()
-				managers.music:track_listen_start("screen_"..VolumeMixerByirbi.QM_S_track_id, "screen_"..VolumeMixerByirbi.QM_S_track_id)
+				managers.music:track_listen_start("screen_"..track_id, "screen_"..track_id)
 				managers.music:track_listen_stop()
-				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
+				Global.music_manager.source:post_event(track_id)
 				managers.music:post_event(CE)
 			end
 		else
-			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
+			if Global.music_manager.current_track ~= "screen_"..track_id then
 				managers.music:track_listen_stop()
 				managers.music:post_event("stop_all_music")
-				managers.music:track_listen_start(VolumeMixerByirbi.QM_S_track_id, "screen_"..VolumeMixerByirbi.QM_S_track_id)
+				managers.music:track_listen_start(track_id, "screen_"..track_id)
 				Global.music_manager.source:stop()
-				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
+				Global.music_manager.source:post_event(track_id)
 				Global.music_manager.source:post_event("suspense_4")
-				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_S_track_id
+				Global.music_manager.current_track = "screen_"..track_id
 				Global.music_manager.current_event = "suspense_4"
 			end
 		end
-		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == true then
-			managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+		if VolumeMixerByirbi.settings.fullmute == true then
+			managers.user:set_setting("music_volume", 0)
+		elseif VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
+			managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
 		else
 			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 		end
-		if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == false then
-			node._items[27].selected = 2
+		if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
+			node._items[24].selected = 2
 		else
-			node._items[27].selected = 1
+			node._items[24].selected = 1
 		end
-		node._items[28]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"])
-		node._items[28]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"]
+		node._items[25]:set_enabled(VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"])
+		node._items[25]._value = VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"]
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
 	end
 	
 	MenuCallbackHandler.VMBI_clbck_QM_S_toggle = function(this, item)
 		local CE = Global.music_manager.current_event
+		local node = MenuHelper:GetMenu("VMBI")
 		if not VolumeMixerByirbi.QM_S_track_id then
 			VolumeMixerByirbi.QM_S_track_id = string.sub(VolumeMixerByirbi.qucikacessghosttracks[1], 21, string.len(VolumeMixerByirbi.qucikacessghosttracks[1]))
 		end
+		local track_id = VolumeMixerByirbi.QM_S_track_id
 		if Utils:IsInGameState() then
-			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
+			if Global.music_manager.current_track ~= "screen_"..track_id then
 				Global.music_manager.source:stop()
-				managers.music:track_listen_start("screen_"..VolumeMixerByirbi.QM_S_track_id, "screen_"..VolumeMixerByirbi.QM_S_track_id)
+				managers.music:track_listen_start("screen_"..track_id, "screen_"..track_id)
 				managers.music:track_listen_stop()
-				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
+				Global.music_manager.source:post_event(track_id)
 				managers.music:post_event(CE)
 			end
 		else
-			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
+			if Global.music_manager.current_track ~= "screen_"..track_id then
 				managers.music:track_listen_stop()
 				managers.music:post_event("stop_all_music")
-				managers.music:track_listen_start(VolumeMixerByirbi.QM_S_track_id, "screen_"..VolumeMixerByirbi.QM_S_track_id)
+				managers.music:track_listen_start(track_id, "screen_"..track_id)
 				Global.music_manager.source:stop()
-				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
+				Global.music_manager.source:post_event(track_id)
 				Global.music_manager.source:post_event("suspense_4")
-				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_S_track_id
+				Global.music_manager.current_track = "screen_"..track_id
 				Global.music_manager.current_event = "suspense_4"
 			end
 		end
-		local node = MenuHelper:GetMenu("VMBI")
-		VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] = item:value() == 'on'
-		node._items[28]:set_enabled(not node._items[28]:enabled())
+		VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] = item:value() == 'on'
+		node._items[25]:set_enabled(not node._items[25]:enabled())
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
-		local track_id = VolumeMixerByirbi.QM_S_track_id
-		local newnode = MenuHelper:GetMenu("VMBI_ghosts")
-		for i=1,#newnode._items do
-			if string.sub(newnode._items[i]._parameters.name, 23, string.len(newnode._items[i]._parameters.name)) == track_id and string.sub(newnode._items[i]._parameters.name, 1, 22) == "VMBIghosttrack_toggle_" then
-				if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
-					newnode._items[i].selected = 2
-				else
-					newnode._items[i].selected = 1
-				end
-				newnode._items[i+1]:set_enabled(not newnode._items[i+1]:enabled())
-				break
-			end
-		end
 		VolumeMixerByirbi:Save()
-		if Global.music_manager.current_track == "screen_"..VolumeMixerByirbi.QM_S_track_id then 
-			if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+		if Global.music_manager.current_track == "screen_"..track_id and VolumeMixerByirbi.settings.fullmute == false then
+			if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
+				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
 			else
 				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
 			end
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 	
@@ -826,38 +590,33 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 			VolumeMixerByirbi.QM_S_track_id = string.sub(VolumeMixerByirbi.qucikacessghosttracks[1], 21, string.len(VolumeMixerByirbi.qucikacessghosttracks[1]))
 			managers.music:track_listen_stop()
 		end
+		local track_id = VolumeMixerByirbi.QM_S_track_id
 		if Utils:IsInGameState() then
-			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
+			if Global.music_manager.current_track ~= "screen_"..track_id then
 				Global.music_manager.source:stop()
-				managers.music:track_listen_start("screen_"..VolumeMixerByirbi.QM_S_track_id, "screen_"..VolumeMixerByirbi.QM_S_track_id)
+				managers.music:track_listen_start("screen_"..track_id, "screen_"..track_id)
 				managers.music:track_listen_stop()
-				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
+				Global.music_manager.source:post_event(track_id)
 				managers.music:post_event(CE)
 			end
 		else
-			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
+			if Global.music_manager.current_track ~= "screen_"..track_id then
 				managers.music:track_listen_stop()
 				managers.music:post_event("stop_all_music")
-				managers.music:track_listen_start(VolumeMixerByirbi.QM_S_track_id, "screen_"..VolumeMixerByirbi.QM_S_track_id)
+				managers.music:track_listen_start(track_id, "screen_"..track_id)
 				Global.music_manager.source:stop()
-				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
+				Global.music_manager.source:post_event(track_id)
 				Global.music_manager.source:post_event("suspense_4")
-				Global.music_manager.current_track = "screen_"..VolumeMixerByirbi.QM_S_track_id
+				Global.music_manager.current_track = "screen_"..track_id
 				Global.music_manager.current_event = "suspense_4"
 			end
 		end
-		VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"] = tonumber(item:value())
-		local track_id = VolumeMixerByirbi.QM_S_track_id
-		local newnode = MenuHelper:GetMenu("VMBI_ghosts")
-		for i=1,#newnode._items do
-			if string.sub(newnode._items[i]._parameters.name, 23, string.len(newnode._items[i]._parameters.name)) == track_id and string.sub(newnode._items[i]._parameters.name, 1, 22) == "VMBIghosttrack_toggle_" then
-				newnode._items[i+1]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"]
-				break
-			end
-		end
+		VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"] = tonumber(item:value())
 		VolumeMixerByirbi:Save()
-		if Global.music_manager.current_track == "screen_"..VolumeMixerByirbi.QM_S_track_id then
-			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+		if Global.music_manager.current_track == "screen_"..track_id and VolumeMixerByirbi.settings.fullmute == false then
+			managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
+		else
+			managers.user:set_setting("music_volume", 0)
 		end
 	end
 	
@@ -871,10 +630,15 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				managers.music:track_listen_stop()
 				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_S_track_id)
 				managers.music:post_event(CE)
-				if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == true then
-					managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+				
+				if VolumeMixerByirbi.settings.fullmute == false then
+					if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == true then
+						managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+					else
+						managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+					end
 				else
-					managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+					managers.user:set_setting("music_volume", 0)
 				end
 				return
 			end
@@ -891,10 +655,14 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				Global.music_manager.current_event = CE
 				managers.music._skip_play = true
 			end
-			if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+			if VolumeMixerByirbi.settings.fullmute == false then
+				if VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_toggle"] == true then
+					managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_S_track_id.."_volume"])
+				else
+					managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+				end
 			else
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+				managers.user:set_setting("music_volume", 0)
 			end
 		else
 			if Global.music_manager.current_track ~= "screen_"..VolumeMixerByirbi.QM_S_track_id then
@@ -917,32 +685,27 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 		local CE = Global.music_manager.current_event
 		if not VolumeMixerByirbi.QM_S_track_id then
 			VolumeMixerByirbi.QM_S_track_id = string.sub(VolumeMixerByirbi.qucikacessghosttracks[1], 21, string.len(VolumeMixerByirbi.qucikacessghosttracks[1]))
-			managers.music:track_listen_stop()
+			--managers.music:track_listen_stop()
 		end
 		
 		if item:value() == 1 then
 			VMBI_play_S_trackphase("Default")
-		else
-			if item:value() == 2 then
-				VMBI_play_S_trackphase("suspense_1")
-			elseif item:value() == 3 then
-				VMBI_play_S_trackphase("suspense_2")
-			elseif item:value() == 4 then
-				VMBI_play_S_trackphase("suspense_3")
-			elseif item:value() == 5 then
-				VMBI_play_S_trackphase("suspense_4")
-			elseif item:value() == 6 then
-				VMBI_play_S_trackphase("suspense_5")
-			end
+		elseif item:value() == 2 then
+			VMBI_play_S_trackphase("suspense_1")
+		elseif item:value() == 3 then
+			VMBI_play_S_trackphase("suspense_2")
+		elseif item:value() == 4 then
+			VMBI_play_S_trackphase("suspense_3")
+		elseif item:value() == 5 then
+			VMBI_play_S_trackphase("suspense_4")
+		elseif item:value() == 6 then
+			VMBI_play_S_trackphase("suspense_5")
 		end
 	end
 
 	VolumeMixerByirbi:Load()
 
 	MenuHelper:LoadFromJsonFile(VolumeMixerByirbi.modpath .. 'menus/VolumeMixerByirbimenu.txt', VolumeMixerByirbi, VolumeMixerByirbi.settings)
-	MenuHelper:LoadFromJsonFile(VolumeMixerByirbi.modpath .. 'menus/VolumeMixerByirbimenu_ghosttracks.txt', VolumeMixerByirbi, VolumeMixerByirbi.settings)
-	MenuHelper:LoadFromJsonFile(VolumeMixerByirbi.modpath .. 'menus/VolumeMixerByirbimenu_ingametracks.txt', VolumeMixerByirbi, VolumeMixerByirbi.settings)
-	MenuHelper:LoadFromJsonFile(VolumeMixerByirbi.modpath .. 'menus/VolumeMixerByirbimenu_menutracks.txt', VolumeMixerByirbi, VolumeMixerByirbi.settings)
 end)
 
 Hooks:Add("MenuManagerBuildCustomMenus", "MenuManagerCreateCustomMenuItems_For_VMBI", function( menu_manager, nodes )
@@ -1176,13 +939,6 @@ Hooks:Add("MenuManagerBuildCustomMenus", "MenuManagerCreateCustomMenuItems_For_V
 				disabled = not VolumeMixerByirbi.settings.tracks_data[QM_S_base_val.."_toggle"],
 				priority = 2
 			})
-			--[[
-			MenuHelper:AddDivider({
-				id = "VMBIdivider_volumemenu_8",
-				size = 16,
-				menu_id = "VMBI",
-				priority = 1
-			})]]
 			MenuHelper:AddMultipleChoice({
 				id = "VMBIghosttracks_phasechoice",
 				title = "VMBI_phase",
@@ -1200,305 +956,4 @@ Hooks:Add("MenuManagerBuildCustomMenus", "MenuManagerCreateCustomMenuItems_For_V
 		end
 	end
 	build_quickaccessfor_ghost()
-	
-	local function build_menutracks_menu()
-		if managers.music then
-			local _prior = 999999
-			local track_list,track_locked = managers.music:jukebox_menu_tracks()
-			for __, track_name in pairs(track_list or {}) do
-				if not track_locked[track_name] then
-					MenuHelper:AddButton({
-						id = "VMBItrackID_"..track_name,
-						title = "menu_jukebox_screen_" .. track_name,
-						desc = "VMBI_track_header_desc",
-						callback = "VMBI_clbck_playtrackonnameclick",
-						menu_id = "VMBI_menus",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddToggle({
-						id = "VMBItrack_toggle_"..track_name,
-						title = "VMBI_track_toggle",
-						desc = "VMBI_track_toggle_desc",
-						callback = "VMBI_clbck_enablecustomvolume_menus",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						menu_id = "VMBI_menus",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddSlider({
-						id = "VMBItrack_volume_"..track_name,
-						title = "VMBI_track_volume",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_savecustomvolumefortrack_menus",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_volume"] or 20,
-						min = 0,
-						max = 100,
-						step = 1,
-						show_value = true,
-						menu_id = "VMBI_menus",
-						disabled = not VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddDivider({
-						id = "VMBIdividerafter_"..track_name,
-						size = 16,
-						menu_id = "VMBI_menus",
-						priority = _prior
-					})
-					_prior = _prior -1
-				else -- build locked tracks, but disable interactions
-					MenuHelper:AddButton({
-						id = "VMBItrackID_"..track_name,
-						title = "menu_jukebox_screen_" .. track_name,
-						desc = "VMBI_locked_track_desc",
-						callback = "VMBI_clbck_donothing",
-						disabled = true,
-						menu_id = "VMBI_menus",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddToggle({
-						id = "VMBItrack_toggle_"..track_name,
-						title = "VMBI_track_toggle",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_donothing",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						disabled = true,
-						menu_id = "VMBI_menus",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddSlider({
-						id = "VMBItrack_volume_"..track_name,
-						title = "VMBI_track_volume",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_donothing",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_volume"] or 20,
-						min = 0,
-						max = 100,
-						step = 1,
-						show_value = true,
-						menu_id = "VMBI_menus",
-						disabled = true,
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddDivider({
-						id = "VMBIdividerafter_"..track_name,
-						size = 16,
-						menu_id = "VMBI_menus",
-						priority = _prior
-					})
-					_prior = _prior -1
-				end
-			end
-		else
-			DelayedCalls:Add("VMBI_buildmenutracks_loop", 0.1, function()
-				build_menutracks_menu()
-			end)
-		end
-	end
-	build_menutracks_menu()
-	local function build_menutracks_ingame()
-		if managers.music then
-			local _prior = 999999
-			local track_list,track_locked = managers.music:jukebox_music_tracks()
-			for __, track_name in pairs(track_list or {}) do
-				if not track_locked[track_name] then
-					MenuHelper:AddButton({
-						id = "VMBIgametrackID_"..track_name,
-						title = "menu_jukebox_" .. track_name,
-						desc = "VMBI_track_header_desc",
-						callback = "VMBI_clbck_playgametrackonnameclick",
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddToggle({
-						id = "VMBIgametrack_toggle_"..track_name,
-						title = "VMBI_track_toggle",
-						desc = "VMBI_track_toggle_desc",
-						callback = "VMBI_clbck_enablecustomvolume_game",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddSlider({
-						id = "VMBIgametrack_volume_"..track_name,
-						title = "VMBI_track_volume",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_savecustomvolumefortrack_game",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_volume"] or 20,
-						min = 0,
-						max = 100,
-						step = 1,
-						show_value = true,
-						disabled = not VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddDivider({
-						id = "VMBIgamedividerafter_"..track_name,
-						size = 16,
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-				else
-					MenuHelper:AddButton({
-						id = "VMBIgametrackID_"..track_name,
-						title = "menu_jukebox_" .. track_name,
-						desc = "VMBI_locked_track_desc",
-						callback = "VMBI_clbck_donothing",
-						disabled = true,
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddToggle({
-						id = "VMBIgametrack_toggle_"..track_name,
-						title = "VMBI_track_toggle",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_donothing",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						disabled = true,
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddSlider({
-						id = "VMBIgametrack_volume_"..track_name,
-						title = "VMBI_track_volume",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_donothing",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_volume"] or 20,
-						min = 0,
-						max = 100,
-						step = 1,
-						show_value = true,
-						disabled = true,
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddDivider({
-						id = "VMBIgamedividerafter_"..track_name,
-						size = 16,
-						menu_id = "VMBI_ingame",
-						priority = _prior
-					})
-					_prior = _prior -1
-				end
-			end
-		else
-			DelayedCalls:Add("VMBI_buildingametracks_loop", 0.1, function()
-				build_menutracks_menu()
-			end)
-		end
-	end
-	build_menutracks_ingame()
-	local function build_menutracks_ghosts()
-		if managers.music then
-			local _prior = 999999
-			local track_list,track_locked = managers.music:jukebox_ghost_tracks()
-			for __, track_name in pairs(track_list or {}) do
-				if not track_locked[track_name] then
-					MenuHelper:AddButton({
-						id = "VMBIghosttrackID_"..track_name,
-						title = "menu_jukebox_screen_" .. track_name,
-						desc = "VMBI_track_header_desc",
-						callback = "VMBI_clbck_playghosttrackonnameclick",
-						menu_id = "VMBI_ghosts",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddToggle({
-						id = "VMBIghosttrack_toggle_"..track_name,
-						title = "VMBI_track_toggle",
-						desc = "VMBI_track_toggle_desc",
-						callback = "VMBI_clbck_enablecustomvolume_ghost",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						menu_id = "VMBI_ghosts",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddSlider({
-						id = "VMBIghosttrack_volume_"..track_name,
-						title = "VMBI_track_volume",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_savecustomvolumefortrack_ghost",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_volume"] or 20,
-						min = 0,
-						max = 100,
-						step = 1,
-						show_value = true,
-						menu_id = "VMBI_ghosts",
-						disabled = not VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddDivider({
-						id = "VMBIdividerafter_"..track_name,
-						size = 16,
-						menu_id = "VMBI_ghosts",
-						priority = _prior
-					})
-					_prior = _prior -1
-				else -- build locked tracks, but disable interactions
-					MenuHelper:AddButton({
-						id = "VMBIghoststrackID_"..track_name,
-						title = "menu_jukebox_screen_" .. track_name,
-						desc = "VMBI_locked_track_desc",
-						callback = "VMBI_clbck_donothing",
-						disabled = true,
-						menu_id = "VMBI_ghosts",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddToggle({
-						id = "VMBIghosttrack_toggle_"..track_name,
-						title = "VMBI_track_toggle",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_donothing",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_toggle"],
-						disabled = true,
-						menu_id = "VMBI_ghosts",
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddSlider({
-						id = "VMBIghosttrack_volume_"..track_name,
-						title = "VMBI_track_volume",
-						desc = "VMBI_empty",
-						callback = "VMBI_clbck_donothing",
-						value = VolumeMixerByirbi.settings.tracks_data[track_name.."_volume"] or 20,
-						min = 0,
-						max = 100,
-						step = 1,
-						show_value = true,
-						menu_id = "VMBI_ghosts",
-						disabled = true,
-						priority = _prior
-					})
-					_prior = _prior -1
-					MenuHelper:AddDivider({
-						id = "VMBIdividerafter_"..track_name,
-						size = 16,
-						menu_id = "VMBI_ghosts",
-						priority = _prior
-					})
-					_prior = _prior -1
-				end
-			end
-		else
-			DelayedCalls:Add("VMBI_buildghosttracks_loop", 0.1, function()
-				build_menutracks_ghosts()
-			end)
-		end
-	end
-	build_menutracks_ghosts()
 end)

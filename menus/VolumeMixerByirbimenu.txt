@@ -14,7 +14,7 @@
 			"description" : "VMBI_default_volume_desc",
 			"callback" : "VMBI_set_default_volume",
 			"value" : "defaultvolume",
-			"priority" : 25004,
+			"priority" : 104,
 			"default_value" : 20,
 			"min" : 0,
 			"max" : 100,
@@ -22,13 +22,13 @@
 		},
 		{
 			"type" : "divider",
-			"priority" : 25003,
+			"priority" : 103,
 			"size" : 8
 		},
 		{
 			"type" : "toggle",
 			"id" : "fullmute",
-			"priority" : 25002,
+			"priority" : 102,
 			"title" : "VMBI_fullmute",
 			"description" : "VMBI_fullmute_desc",
 			"callback" : "VMBI_clbck_fullmute",
@@ -37,7 +37,7 @@
 		},
 		{
 			"type" : "divider",
-			"priority" : 25001,
+			"priority" : 101,
 			"size" : 8
 		}
 	]
