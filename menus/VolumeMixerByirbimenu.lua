@@ -162,22 +162,24 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				end
 			end
 		else
-			if Global.music_manager.current_track == "stop_all_music" then
-				local CE = Global.music_manager.current_event
-				local switches = tweak_data.levels:get_music_switches()
-				if switches then -- fml stealth only heists are stupid
-					local selected_track = switches[math.random(1,#switches)]
-					managers.music:track_listen_start(CE, selected_track)
-					managers.music:post_event(selected_track)
-					managers.music:post_event(CE)
-					managers.music._skip_play = nil
-					Global.music_manager.current_track = selected_track
-					if VolumeMixerByirbi.settings.fullmute == true then
-						managers.user:set_setting("music_volume", 0)
-					elseif VolumeMixerByirbi.settings.tracks_data[selected_track.."_toggle"] == true then
-						managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[selected_track.."_volume"])
-					else
-						managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+			if Global.music_manager.current_event ~= managers.music:jukebox_menu_track("loadout") then
+				if Global.music_manager.current_track == "stop_all_music" then
+					local CE = Global.music_manager.current_event
+					local switches = tweak_data.levels:get_music_switches()
+					if switches then -- fml stealth only heists are stupid
+						local selected_track = switches[math.random(1,#switches)]
+						managers.music:track_listen_start(CE, selected_track)
+						managers.music:post_event(selected_track)
+						managers.music:post_event(CE)
+						managers.music._skip_play = nil
+						Global.music_manager.current_track = selected_track
+						if VolumeMixerByirbi.settings.fullmute == true then
+							managers.user:set_setting("music_volume", 0)
+						elseif VolumeMixerByirbi.settings.tracks_data[selected_track.."_toggle"] == true then
+							managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[selected_track.."_volume"])
+						else
+							managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+						end
 					end
 				end
 			end
