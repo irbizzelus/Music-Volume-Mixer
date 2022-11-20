@@ -32,7 +32,8 @@ Hooks:PostHook(MenuManager, "_node_selected", "VolumeMixerByirbi_playmainmenutra
 		node._items[2]._slider_color = Color( 31.875, 255, 255, 255 ) / 255
 		node._items[2]._slider_color_highlight = Color( 1, 255, 255, 255 ) / 255
 		VolumeMixerByirbi.fuckingpreplanning = nil
-	elseif type(node) == "table" and node._parameters.name == "kit" then
+		VolumeMixerByirbi.previousNodeJukebox = nil
+	elseif type(node) == "table" and (node._parameters.name == "kit" or node._parameters.name == "loadout" or node._parameters.name == "preplanning") then
 		-- add a kit exception that resets volume based on 'event'
 		VolumeMixerByirbi.fuckingpreplanning = true
 		if VolumeMixerByirbi.settings.fullmute == false then
@@ -47,6 +48,10 @@ Hooks:PostHook(MenuManager, "_node_selected", "VolumeMixerByirbi_playmainmenutra
 			end
 		else
 			managers.user:set_setting("music_volume", 0)
+		end
+		if VolumeMixerByirbi.previousNodeJukebox then
+			Global.music_manager.current_track = "stop_all_music"
+			VolumeMixerByirbi.previousNodeJukebox = nil
 		end
 	elseif type(node) == "table" and (node._parameters.name == "main" or node._parameters.name == "lobby") then
 		if not VolumeMixerByirbi.menucheck then -- when in menus/lobby set current track to current event so other parts of this mod work correctly. in base game 'track' in menus is usually nil
@@ -70,8 +75,13 @@ Hooks:PostHook(MenuManager, "_node_selected", "VolumeMixerByirbi_playmainmenutra
 			managers.user:set_setting("music_volume", 0)
 		end
 		VolumeMixerByirbi.fuckingpreplanning = nil
+		VolumeMixerByirbi.previousNodeJukebox = nil
+	elseif type(node) == "table" and node._parameters.name == "jukebox" and Utils:IsInGameState() then
+		VolumeMixerByirbi.fuckingpreplanning = nil
+		VolumeMixerByirbi.previousNodeJukebox = true
 	else
 		VolumeMixerByirbi.fuckingpreplanning = nil
+		VolumeMixerByirbi.previousNodeJukebox = nil
 	end
 end)
 
@@ -454,7 +464,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 			if Global.music_manager.current_track ~= VolumeMixerByirbi.QM_G_track_id then
 				managers.music:track_listen_stop()
 				managers.music:post_event("stop_all_music")
-				managers.music:track_listen_start(VolumeMixerByirbi.QM_G_track_id, VolumeMixerByirbi.QM_G_track_id)
+				managers.music:track_listen_start(phase, VolumeMixerByirbi.QM_G_track_id)
 				Global.music_manager.source:stop()
 				Global.music_manager.source:post_event(VolumeMixerByirbi.QM_G_track_id)
 				Global.music_manager.source:post_event(phase)
@@ -462,6 +472,8 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init', function(menu_manag
 				Global.music_manager.current_event = phase
 				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
 			else
+				managers.music:post_event("stop_all_music")
+				managers.music:track_listen_start(phase, VolumeMixerByirbi.QM_G_track_id)
 				Global.music_manager.source:post_event(phase)
 				Global.music_manager.current_event = phase
 				VMBI_postphasevolume_G(VolumeMixerByirbi.QM_G_track_id)
