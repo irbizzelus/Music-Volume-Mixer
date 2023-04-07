@@ -18,6 +18,8 @@ Hooks:Add('LocalizationManagerPostInit', 'VolumeMixerByirbi_loc', function(loc)
 		loc:load_localization_file(VolumeMixerByirbi.modpath .. 'menus/lang/VolumeMixerByirbimenu_ru.txt', false)
 	elseif lang == "chs" then -- thanks Arknights
 		loc:load_localization_file(VolumeMixerByirbi.modpath .. 'menus/lang/VolumeMixerByirbimenu_chs.txt', false)
+	elseif lang == "es" then -- thanks Un aweonao
+		loc:load_localization_file(VolumeMixerByirbi.modpath .. 'menus/lang/VolumeMixerByirbimenu_es.txt', false)
 	else
 		loc:load_localization_file(VolumeMixerByirbi.modpath .. 'menus/lang/VolumeMixerByirbimenu_en.txt', false)
 	end
