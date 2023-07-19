@@ -1,16 +1,20 @@
-Hooks:PostHook(CoreMusicManager, "post_event", "VolumeMixerByirbi_corevolumehook", function(self)
-	-- gets called when entering playlist but not when changed music is playing. should try to fix
-	if Global.game_settings and (Global.game_settings.level_id == "kosugi" or Global.game_settings.level_id == "tag" or Global.game_settings.level_id == "cage" or Global.game_settings.level_id == "dark" or Global.game_settings.level_id == "fish") then 
-		Global.music_manager.current_track = Global.music_manager.current_music_ext
-		local track_id = Global.music_manager.current_track
-		if track_id then
-			if VolumeMixerByirbi.settings.fullmute == true then
-				managers.user:set_setting("music_volume", 0)
-			elseif VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == true then
-				managers.user:set_setting("music_volume",  VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"])
-			else
-				managers.user:set_setting("music_volume", VolumeMixerByirbi.settings.defaultvolume)
+function CoreMusicManager:check_music_switch()
+	local switches = tweak_data.levels:get_music_switches()
+	local CT = Global.music_manager.current_track
+	local CE = Global.music_manager.current_event
+
+	if switches and #switches > 0 then
+		Global.music_manager.current_track = switches[math.random(#switches)]
+		
+		if CT ~= Global.music_manager.current_track then
+			if not VolumeMixerByirbi:is_stealth_heist() then
+				managers.music:track_listen_start(CE, Global.music_manager.current_track)
 			end
 		end
+		VolumeMixerByirbi:adjust_current_volume(Global.music_manager.current_track)
+		managers.music._skip_play = nil
+		VolumeMixerByirbi.currently_looped_track_phase = nil
+		print("CoreMusicManager:check_music_switch()", Global.music_manager.current_track)
+		Global.music_manager.source:set_switch("music_randomizer", Global.music_manager.current_track)
 	end
-end)
+end
