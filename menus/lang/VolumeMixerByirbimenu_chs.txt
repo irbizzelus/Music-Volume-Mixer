@@ -4,6 +4,8 @@
     "VMBI_empty": "",
     "VMBI_fullmute": "静音全部音轨",
     "VMBI_fullmute_desc": "把所有界面的音轨音量设置为0",
+	"VMBI_loud_shuffle": "Shuffle tracks",
+	"VMBI_loud_shuffle_desc": "If enabled, upon the end of an assault wave in loud gameplay, music will switch to a different random track.",
     "VMBI_track_toggle": "启用独立音量设置",
     "VMBI_track_toggle_desc": "为这个音轨启用独立的音量设置",
     "VMBI_track_volume": "音量",

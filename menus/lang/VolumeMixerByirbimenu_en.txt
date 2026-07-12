@@ -4,6 +4,8 @@
 	"VMBI_empty": "",
 	"VMBI_fullmute": "Mute all music",
 	"VMBI_fullmute_desc": "Toggles music volume on/off for all tracks.",
+	"VMBI_loud_shuffle": "Shuffle tracks",
+	"VMBI_loud_shuffle_desc": "If enabled, upon the end of an assault wave in loud gameplay, music will switch to a different random track.",
 	"VMBI_track_toggle": "Enabe custom volume",
 	"VMBI_track_toggle_desc": "Enabe custom volume for this track.",
 	"VMBI_track_volume": "Volume",

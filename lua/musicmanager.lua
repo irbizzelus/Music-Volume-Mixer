@@ -1,5 +1,39 @@
-Hooks:PostHook(MusicManager, "track_listen_start", "VolumeMixerByirbi_track_listen_start_adjustvolume", function(self,event,track)
-	if VolumeMixerByirbi.returngamestate() == "in_game" then
+local function alesso_event_check(event)
+	if event == nil then
+		return nil
+	end
+	
+	if type(event) == "string" then
+		if event:find("^alesso_") ~= nil or event:find("^crowd_") ~= nil then
+			return false
+		end
+	end
+	
+	return true
+end
+
+Hooks:OverrideFunction(MusicManager, "track_listen_start", function (self,event,track)
+	if self._current_track == track and self._current_event == event then
+		return
+	end
+
+	self._skip_play = true
+
+	Global.music_manager.source:stop()
+
+	if track then
+		Global.music_manager.source:set_switch("music_randomizer", track)
+	end
+
+	if alesso_event_check(event) then
+		Global.music_manager.source:post_event(event)
+	end
+
+	self._current_track = track
+	self._current_event = event
+	
+	local game_state = VolumeMixerByirbi.returngamestate()
+	if game_state == "in_game" then
 		if track then
 			VolumeMixerByirbi:adjust_current_volume(track)
 			Global.music_manager.current_event = event
@@ -7,7 +41,7 @@ Hooks:PostHook(MusicManager, "track_listen_start", "VolumeMixerByirbi_track_list
 		else
 			VolumeMixerByirbi:adjust_current_volume(event)
 		end
-	elseif VolumeMixerByirbi.returngamestate() == "not_in_game" then
+	elseif game_state == "not_in_game" then
 		if track then
 			VolumeMixerByirbi:adjust_current_volume(track)
 			Global.music_manager.current_event = event
@@ -17,7 +51,7 @@ Hooks:PostHook(MusicManager, "track_listen_start", "VolumeMixerByirbi_track_list
 			Global.music_manager.current_event = "standard_menu_music"
 			Global.music_manager.current_track = event
 		end
-	elseif VolumeMixerByirbi.returngamestate() == "pre_game_lobby" then
+	elseif game_state == "pre_game_lobby" then
 		local CE = Global.music_manager.current_event
 		if event == "stop_all_music" then
 			Global.music_manager.current_event = CE
@@ -36,7 +70,25 @@ Hooks:PostHook(MusicManager, "track_listen_start", "VolumeMixerByirbi_track_list
 	end
 end)
 
-function MusicManager:music_ext_listen_start(music_ext,event)
+Hooks:OverrideFunction(MusicManager, "track_listen_stop", function (self)
+	if self._current_event then
+		Global.music_manager.source:post_event("stop_all_music")
+		
+		if alesso_event_check(Global.music_manager.current_event) then
+			Global.music_manager.source:post_event(Global.music_manager.current_event)
+		end
+	end
+
+	if self._current_track and Global.music_manager.current_track then
+		Global.music_manager.source:set_switch("music_randomizer", Global.music_manager.current_track)
+	end
+
+	self._current_event = nil
+	self._current_track = nil
+	self._skip_play = nil
+end)
+
+Hooks:OverrideFunction(MusicManager, "music_ext_listen_start", function (self,music_ext,event)
 	if self._current_music_ext == music_ext and not event then
 		return
 	end
@@ -102,10 +154,10 @@ function MusicManager:music_ext_listen_start(music_ext,event)
 			Global.music_manager.current_event = CE
 		end
 	end
-end
+end)
 
 -- shows current track name in 'more info tab" (tab keybind)
-function MusicManager:current_track_string()
+Hooks:OverrideFunction(MusicManager, "current_track_string", function (self)
 	local level_data = Global.level_data.level_id and tweak_data.levels[Global.level_data.level_id]
 	local music_style = tweak_data.levels:get_music_style_from_level_data(level_data)
 
@@ -123,12 +175,12 @@ function MusicManager:current_track_string()
 	end
 
 	return ""
-end
+end)
 
 -- could've been a post hook, but get_music_event_ext_ghost returns random tracks if music is set to playlist or random-all
 -- which would mean inconsistency between track that is played and one that our post-hook recieves
 -- seems to only be used when entering heists so we'll use it to update volume
-function MusicManager:check_music_ext_ghost()
+Hooks:OverrideFunction(MusicManager, "check_music_ext_ghost", function (self)
 	local music, start_switch = tweak_data.levels:get_music_event_ext_ghost()
 	Global.music_manager.current_music_ext = music
 	
@@ -144,4 +196,11 @@ function MusicManager:check_music_ext_ghost()
 		self:post_event(music)
 		self:post_event(start_switch)
 	end
-end
+end)
+
+local MVM_MusicManager_jukebox_default_tracks = MusicManager.jukebox_default_tracks
+Hooks:OverrideFunction(MusicManager, "jukebox_default_tracks", function (self)
+	local res = MVM_MusicManager_jukebox_default_tracks(self)
+	res.heist_arena = "all"
+	return res
+end)

@@ -4,6 +4,8 @@
 	"VMBI_empty": "",
 	"VMBI_fullmute": "Silenciar toda la música",
 	"VMBI_fullmute_desc": "Cambiar el volumen de la música a 0 en todos los menús.",
+	"VMBI_loud_shuffle": "Shuffle tracks",
+	"VMBI_loud_shuffle_desc": "If enabled, upon the end of an assault wave in loud gameplay, music will switch to a different random track.",
 	"VMBI_track_toggle": "Habilitar volumen personalizado",
 	"VMBI_track_toggle_desc": "Habilitar volumen personalizado para este tema.",
 	"VMBI_track_volume": "Volumen",

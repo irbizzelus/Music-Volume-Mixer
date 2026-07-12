@@ -14,11 +14,26 @@
 			"description" : "VMBI_default_volume_desc",
 			"callback" : "VMBI_set_default_volume",
 			"value" : "defaultvolume",
-			"priority" : 104,
+			"priority" : 106,
 			"default_value" : 20,
 			"min" : 0,
 			"max" : 100,
 			"step" : 1
+		},
+		{
+			"type" : "divider",
+			"priority" : 105,
+			"size" : 8
+		},
+		{
+			"type" : "toggle",
+			"id" : "fullmute",
+			"priority" : 104,
+			"title" : "VMBI_fullmute",
+			"description" : "VMBI_fullmute_desc",
+			"callback" : "VMBI_clbck_fullmute",
+			"value" : "fullmute",
+			"default_value" : false
 		},
 		{
 			"type" : "divider",
@@ -27,12 +42,12 @@
 		},
 		{
 			"type" : "toggle",
-			"id" : "fullmute",
+			"id" : "loud_shuffle",
 			"priority" : 102,
-			"title" : "VMBI_fullmute",
-			"description" : "VMBI_fullmute_desc",
-			"callback" : "VMBI_clbck_fullmute",
-			"value" : "fullmute",
+			"title" : "VMBI_loud_shuffle",
+			"description" : "VMBI_loud_shuffle_desc",
+			"callback" : "VMBI_clbck_loud_shuffle",
+			"value" : "loud_shuffle",
 			"default_value" : false
 		},
 		{

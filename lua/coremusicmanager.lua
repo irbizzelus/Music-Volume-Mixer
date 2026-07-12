@@ -1,4 +1,4 @@
-function CoreMusicManager:check_music_switch()
+Hooks:OverrideFunction(CoreMusicManager, "check_music_switch", function (self)
 	local switches = tweak_data.levels:get_music_switches()
 	local CT = Global.music_manager.current_track
 	local CE = Global.music_manager.current_event
@@ -17,4 +17,4 @@ function CoreMusicManager:check_music_switch()
 		print("CoreMusicManager:check_music_switch()", Global.music_manager.current_track)
 		Global.music_manager.source:set_switch("music_randomizer", Global.music_manager.current_track)
 	end
-end
+end)

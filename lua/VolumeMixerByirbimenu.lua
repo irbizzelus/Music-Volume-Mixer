@@ -5,6 +5,7 @@ if not VolumeMixerByirbi then
 	VolumeMixerByirbi.settings = {
 		defaultvolume = 20,
 		fullmute = false,
+		loud_shuffle = false,
 		tracks_data = {}
 	}
 	VolumeMixerByirbi.currently_looped_track_phase = ""
@@ -325,6 +326,11 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_init_basic_callbacks', fun
 		end
 	end
 	
+	MenuCallbackHandler.VMBI_clbck_loud_shuffle = function(this, item)
+		VolumeMixerByirbi.settings[item:name()] = item:value() == 'on'
+		VolumeMixerByirbi:Save()
+	end
+	
 	MenuCallbackHandler.VMBI_set_default_volume = function(this, item)
 		VolumeMixerByirbi.settings.defaultvolume = tonumber(item:value())
 		VolumeMixerByirbi:Save()
@@ -358,12 +364,12 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_menu_tracks_callbacks', fu
 		-- UI
 		local node = MenuHelper:GetMenu("VMBI")
 		if not VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] then
-			node._items[11].selected = 2
+			node._items[13].selected = 2
 		else
-			node._items[11].selected = 1
+			node._items[13].selected = 1
 		end
-		node._items[12]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"])
-		node._items[12]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
+		node._items[14]:set_enabled(VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_toggle"])
+		node._items[14]._value = VolumeMixerByirbi.settings.tracks_data[VolumeMixerByirbi.QM_M_track_id.."_volume"]
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
 	end
 	
@@ -388,7 +394,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_menu_tracks_callbacks', fu
 		end	
 		-- UI
 		local node = MenuHelper:GetMenu("VMBI")
-		node._items[12]:set_enabled(not node._items[12]:enabled())
+		node._items[14]:set_enabled(not node._items[14]:enabled())
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
 	end
 
@@ -471,12 +477,12 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_heist_tracks_callbacks', f
 		-- UI
 		local node = MenuHelper:GetMenu("VMBI")
 		if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
-			node._items[17].selected = 2
+			node._items[19].selected = 2
 		else
-			node._items[17].selected = 1
+			node._items[19].selected = 1
 		end
-		node._items[18]:set_enabled(VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"])
-		node._items[18]._value = VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"]
+		node._items[20]:set_enabled(VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"])
+		node._items[20]._value = VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"]
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)	
 	end
 	
@@ -508,7 +514,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_heist_tracks_callbacks', f
 		end
 		-- UI
 		local node = MenuHelper:GetMenu("VMBI")
-		node._items[18]:set_enabled(not node._items[18]:enabled())
+		node._items[20]:set_enabled(not node._items[20]:enabled())
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
 	end
 	
@@ -734,12 +740,12 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_stealth_tracks_callbacks',
 		-- UI
 		local node = MenuHelper:GetMenu("VMBI")
 		if VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"] == false then
-			node._items[24].selected = 2
+			node._items[26].selected = 2
 		else
-			node._items[24].selected = 1
+			node._items[26].selected = 1
 		end
-		node._items[25]:set_enabled(VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"])
-		node._items[25]._value = VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"]
+		node._items[27]:set_enabled(VolumeMixerByirbi.settings.tracks_data[track_id.."_toggle"])
+		node._items[27]._value = VolumeMixerByirbi.settings.tracks_data[track_id.."_volume"]
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
 	end
 	
@@ -771,7 +777,7 @@ Hooks:Add('MenuManagerInitialize', 'VolumeMixerByirbi_stealth_tracks_callbacks',
 		end
 		-- UI
 		local node = MenuHelper:GetMenu("VMBI")
-		node._items[25]:set_enabled(not node._items[25]:enabled())
+		node._items[27]:set_enabled(not node._items[27]:enabled())
 		managers.menu:active_menu().renderer:active_node_gui():refresh_gui(node)
 	end
 	
